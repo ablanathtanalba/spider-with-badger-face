@@ -14,5 +14,15 @@ const path = require('path');
     ]
   });
 
+  // get access to the pb background page
+  const targets = await browser.targets();
+  const backgroundPageTarget = targets.find(target => target.type() === 'background_page');
+  const backgroundPage = await backgroundPageTarget.page();
+
   const page = await browser.newPage();
+
+  await page.goto('https://www.google.com')
+
+
+
 })();
