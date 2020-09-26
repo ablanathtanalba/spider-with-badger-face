@@ -1,5 +1,7 @@
 const puppeteer = require('puppeteer');
 const path = require('path');
+const csv = require('csv-parser');
+const fs = require('fs');
 
 (async () => {
   const pathToPB = path.join(__dirname, 'pb/privacybadger-master/src/');
@@ -24,5 +26,14 @@ const path = require('path');
   await page.goto('https://www.google.com')
 
 
+  // process tranco list csv into usable array
+  const trancoList = [];
+  fs.createReadStream('tranco/top-1m.csv').pipe(csv()).on('data', (row) => {
+    // for whatever reason each domain gets indexed as a property of google.com
+    trancoList.push(row["google.com"])
+  }).on('end', () => {
+    console.log('finished processing tranco list');
+    // CALLBACK FOR VISITING EACH DOMAIN SHOULD GO HERE?
+  });
 
 })();
