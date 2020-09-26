@@ -3,10 +3,28 @@ const path = require('path');
 const csv = require('csv-parser');
 const fs = require('fs');
 
-(async () => {
-  const pathToPB = path.join(__dirname, 'pb/privacybadger-master/src/');
 
-  // launch browser automatically installed with privacy badger
+// process tranco list csv into usable array
+let trancoList = buildTrancoList('tranco/top-1m.csv');
+
+function buildTrancoList(filepath) {
+  let list = []
+
+  fs.createReadStream('tranco/top-1m.csv').pipe(csv()).on('data', (row) => {
+    list.push(row["google.com"]);
+  });
+
+  return list;
+};
+
+
+// path to directory that contains manifest.json of the pb version you want to install on the headless browser
+const pathToPB = path.join(__dirname, 'pb/privacybadger-master/src/');
+
+
+
+// launch headless browser installed with privacy badger
+(async () => {
   const browser = await puppeteer.launch({
     // until further notice, extensions only work in non-headless mode: https://github.com/puppeteer/puppeteer/blob/main/docs/api.md#working-with-chrome-extensions
     headless: false,
@@ -16,24 +34,19 @@ const fs = require('fs');
     ]
   });
 
-  // get access to the pb background page
-  const targets = await browser.targets();
-  const backgroundPageTarget = targets.find(target => target.type() === 'background_page');
-  const backgroundPage = await backgroundPageTarget.page();
+  let temporaryList = trancoList.slice(0, 10000)
 
-  const page = await browser.newPage();
+  // crawl through tranco list and attempt to visit each within the same browser context
+  for (let url of temporaryList) {
+    console.log('Visiting ' + trancoList.indexOf(url) + '/' + temporaryList.length +' : ' + url);
+    let page = await browser.newPage();
 
-  await page.goto('https://www.google.com')
-
-
-  // process tranco list csv into usable array
-  const trancoList = [];
-  fs.createReadStream('tranco/top-1m.csv').pipe(csv()).on('data', (row) => {
-    // for whatever reason each domain gets indexed as a property of google.com
-    trancoList.push(row["google.com"])
-  }).on('end', () => {
-    console.log('finished processing tranco list');
-    // CALLBACK FOR VISITING EACH DOMAIN SHOULD GO HERE?
-  });
-
+    try{
+      await page.goto('https://www.'+ url, { timeout: 6000});
+    } catch(err) {
+      console.log('An error occurred on ' + url +  ': \t ' + err)
+    } finally {
+      await page.close();
+    }
+  };
 })();
